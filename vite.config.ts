@@ -10,7 +10,8 @@ export default defineConfig({
         auth: "auth.html",
         balance: "balance.html",
         customer: "customer.html",
-        transaction: "transaction.html"
+        transaction: "transaction.html",
+        journal: "journal.html"
       }
     }
   },

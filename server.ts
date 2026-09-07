@@ -60,6 +60,16 @@ interface TransactionLine {
   makingCharge: number;
 }
 
+interface JournalRow extends RowDataPacket {
+  se_id: number;
+  se_date: string;
+  se_type: "Debit" | "Credit";
+  se_tbill: number | string | null;
+  se_tpurity: number | string | null;
+  dis: string | null;
+  customer_name: string | null;
+}
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST ?? "localhost",
   user: process.env.DB_USER ?? "hmajewellery_user",
@@ -232,6 +242,35 @@ app.post("/api/customers/:id/transactions", async (request, response) => {
     response.status(503).json({ message: "Transaction could not be saved; no ledger entries were committed" });
   } finally {
     connection.release();
+  }
+});
+
+app.get("/api/journal", async (request, response) => {
+  const fromDate = typeof request.query.from_date === "string" ? request.query.from_date : "";
+  const toDate = typeof request.query.to_date === "string" ? request.query.to_date : "";
+  if ((fromDate && !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) || (toDate && !/^\d{4}-\d{2}-\d{2}$/.test(toDate))) {
+    response.status(400).json({ message: "Dates must use YYYY-MM-DD format" });
+    return;
+  }
+  try {
+    let query = `SELECT s.se_id, s.se_date, s.se_type, s.se_tbill, s.se_tpurity, s.dis, c.name AS customer_name
+      FROM statement s LEFT JOIN customer c ON c.id = s.se_cus WHERE 1 = 1`;
+    const parameters: string[] = [];
+    if (fromDate) { query += " AND s.se_date >= ?"; parameters.push(fromDate); }
+    if (toDate) { query += " AND s.se_date < DATE_ADD(?, INTERVAL 1 DAY)"; parameters.push(toDate); }
+    query += " ORDER BY s.se_date ASC, s.se_id ASC";
+    const [rows] = await pool.query<JournalRow[]>(query, parameters);
+    const totals = rows.reduce((result, row) => {
+      const amount = numeric(row.se_tbill);
+      const gold = numeric(row.se_tpurity);
+      if (row.se_type === "Debit") { result.debit += amount; result.goldDebit += gold; }
+      else { result.credit += amount; result.goldCredit += gold; }
+      return result;
+    }, { debit: 0, credit: 0, goldDebit: 0, goldCredit: 0 });
+    response.json({ rows, totals });
+  } catch (error) {
+    console.error("Journal query failed", error);
+    response.status(503).json({ message: "Journal data is temporarily unavailable" });
   }
 });
 
