@@ -50,6 +50,16 @@ interface CustomerRow extends RowDataPacket {
   role: string;
 }
 
+interface TransactionLine {
+  description: string;
+  grossWeight: number;
+  stoneWeight: number;
+  purity: number;
+  pureWeight: number;
+  pricePerGram: number;
+  makingCharge: number;
+}
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST ?? "localhost",
   user: process.env.DB_USER ?? "hmajewellery_user",
@@ -177,6 +187,51 @@ app.post("/api/customers", async (request, response) => {
   } catch (error) {
     console.error("Customer creation failed", error);
     response.status(503).json({ message: "Customer could not be created" });
+  }
+});
+
+app.post("/api/customers/:id/transactions", async (request, response) => {
+  const customerId = Number(request.params.id);
+  const direction = request.body.direction === "debit" ? "Debit" : request.body.direction === "credit" ? "Credit" : "";
+  const paid = request.body.paid === "Cash" ? "Cash" : "";
+  const reference = typeof request.body.reference === "string" ? request.body.reference.trim() : "";
+  const totalGold = Number(request.body.totalGold);
+  const totalPure = Number(request.body.totalPure);
+  const bill = Number(request.body.bill);
+  const lines = Array.isArray(request.body.lines) ? request.body.lines as TransactionLine[] : [];
+
+  if (!Number.isInteger(customerId) || customerId < 1 || !direction || !paid || !Number.isFinite(totalGold) || !Number.isFinite(totalPure) || !Number.isFinite(bill) || lines.length === 0) {
+    response.status(400).json({ message: "Complete the customer, payment, totals, and at least one gold line" });
+    return;
+  }
+  if (lines.some((line) => !line.description.trim() || !Number.isFinite(Number(line.grossWeight)) || !Number.isFinite(Number(line.pureWeight)))) {
+    response.status(400).json({ message: "Each gold line needs a description, gross weight, and pure weight" });
+    return;
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [customerRows] = await connection.execute<CustomerRow[]>("SELECT id FROM customer WHERE id = ? AND role = 'Customer' LIMIT 1", [customerId]);
+    if (!customerRows[0]) {
+      await connection.rollback();
+      response.status(404).json({ message: "Customer not found" });
+      return;
+    }
+    const state = direction;
+    await connection.execute("INSERT INTO debit (dep_cus, ref, dep_tgold, dep_tbill, dep_tpurity, sate, com, typec) VALUES (?, ?, ?, ?, ?, ?, 0, ?)", [customerId, reference, totalGold, bill, totalPure, state, paid]);
+    await connection.execute("INSERT INTO account (cus_id, ref, amount, amo_cre, gold, role, state, type, com) VALUES (?, ?, ?, 0, ?, 'Customer', ?, ?, 0)", [customerId, reference, bill, totalPure, paid, state]);
+    await connection.execute("INSERT INTO storage (st_cus, st_price, st_gold, type, method, name) VALUES (?, 0, ?, ?, ?, 'gold')", [customerId, totalPure, paid, state]);
+    const description = `JEWELLERY SOLD${direction === "Credit" ? " REVISED" : ""} <br> (GROSS WT - ${totalGold} GMS)`;
+    await connection.execute("INSERT INTO statement (se_cus, ref, se_tgolg, se_tpurity, se_tbill, se_type, se_method, dis) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [customerId, reference, totalGold, totalPure, bill, state, paid, description]);
+    await connection.commit();
+    response.status(201).json({ customerId, direction, reference, totalGold, totalPure, bill, lines });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Customer transaction failed", error);
+    response.status(503).json({ message: "Transaction could not be saved; no ledger entries were committed" });
+  } finally {
+    connection.release();
   }
 });
 

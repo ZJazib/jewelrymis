@@ -9,7 +9,8 @@ export default defineConfig({
         dashboard: "index.html",
         auth: "auth.html",
         balance: "balance.html",
-        customer: "customer.html"
+        customer: "customer.html",
+        transaction: "transaction.html"
       }
     }
   },
