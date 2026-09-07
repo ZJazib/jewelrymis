@@ -1,0 +1,4 @@
+error_log
+**/error_log
+jewelry/uploads/*
+!.gitkeep
