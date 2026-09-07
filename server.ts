@@ -310,8 +310,8 @@ app.post("/api/fixing", async (request, response) => {
     const moneyType = type === "Buy" ? (customerRole === "Customer" ? "Debit" : "Credit") : (customerRole === "Customer" ? "Credit" : "Debit");
     const goldType = type === "Buy" ? (customerRole === "Customer" ? "Credit" : "Debit") : (customerRole === "Customer" ? "Debit" : "Credit");
     const [fixing] = await connection.execute<ResultSetHeader>("INSERT INTO fixing (fi_cus, ref, fi_gold, fi_price, fi_owns, drrate, total, money_state, gold_state, typec) VALUES (?, ?, ?, 3.67, ?, 3.67, ?, ?, ?, ?)", [id, reference, gold, ounce, total, moneyState, goldState, type]);
-    await connection.execute("INSERT INTO account (cus_id, ref, amount, amo_cre, gold, role, state, type, com) VALUES (?, ?, 0, 0, ?, '" + customerRole + "', 'Cash', ?, 0)", [id, reference, gold, goldType]);
-    await connection.execute("INSERT INTO account (cus_id, ref, amount, amo_cre, gold, role, state, type, com) VALUES (?, ?, ?, 0, 0, '" + customerRole + "', 'Cash', ?, 0)", [id, reference, total, moneyType]);
+    await connection.execute("INSERT INTO account (cus_id, ref, amount, amo_cre, gold, role, state, type, com) VALUES (?, ?, 0, 0, ?, ?, 'Cash', ?, 0)", [id, reference, gold, customerRole, goldType]);
+    await connection.execute("INSERT INTO account (cus_id, ref, amount, amo_cre, gold, role, state, type, com) VALUES (?, ?, ?, 0, 0, ?, 'Cash', ?, 0)", [id, reference, total, customerRole, moneyType]);
     const description = `Fixed GOLD ${type.toUpperCase()} TO ${reference} FOR ${name} WT- ${gold} GMS IN OUNCE ${ounce}`;
     await connection.execute("INSERT INTO statement (se_cus, ref, se_tgolg, se_tpurity, se_tbill, se_type, se_method, dis) VALUES (?, ?, 0, ?, 0, ?, 'Cash', ?)", [id, reference, gold, goldType, description]);
     await connection.execute("INSERT INTO statement (se_cus, ref, se_tgolg, se_tpurity, se_tbill, se_type, se_method, dis) VALUES (?, ?, 0, 0, ?, ?, 'Cash', ?)", [id, reference, total, moneyType, description]);
