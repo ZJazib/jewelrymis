@@ -11,7 +11,8 @@ export default defineConfig({
         balance: "balance.html",
         customer: "customer.html",
         transaction: "transaction.html",
-        journal: "journal.html"
+        journal: "journal.html",
+        fixing: "fixing.html"
       }
     }
   },

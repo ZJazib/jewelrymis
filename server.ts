@@ -274,6 +274,56 @@ app.get("/api/journal", async (request, response) => {
   }
 });
 
+app.post("/api/fixing", async (request, response) => {
+  const type = request.body.type === "Buy" || request.body.type === "Sell" ? request.body.type as "Buy" | "Sell" : "";
+  const customerId = Number(request.body.customerId);
+  const gold = Number(request.body.gold);
+  const ounce = Number(request.body.ounce);
+  const total = Number(request.body.total);
+  const reference = typeof request.body.reference === "string" ? request.body.reference.trim() : "";
+  if (!type || (!Number.isInteger(customerId) && !request.body.newCustomer) || !Number.isFinite(gold) || !Number.isFinite(ounce) || !Number.isFinite(total) || !reference) {
+    response.status(400).json({ message: "Complete the person, reference, type, gold, ounce, and total fields" });
+    return;
+  }
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    let id = customerId;
+    let name = "Customer";
+    let role: "Customer" | "Supplier" = "Customer";
+    if (request.body.newCustomer) {
+      const person = request.body.newCustomer as Record<string, unknown>;
+      name = typeof person.name === "string" ? person.name.trim() : "";
+      role = person.role === "Supplier" ? "Supplier" : "Customer";
+      if (!name) throw new Error("Person name is required");
+      const [created] = await connection.execute<ResultSetHeader>("INSERT INTO customer (name, phone, email, nic, ref, loc, role) VALUES (?, ?, ?, ?, ?, ?, ?)", [name, person.phone ?? "", person.email ?? "", person.nic ?? "", reference, person.loc ?? "", role]);
+      id = created.insertId;
+    } else {
+      const [people] = await connection.execute<CustomerRow[]>("SELECT id, name, role FROM customer WHERE id = ? LIMIT 1", [customerId]);
+      const person = people[0];
+      if (!person || (person.role !== "Customer" && person.role !== "Supplier")) throw new Error("Person not found");
+      name = person.name; role = person.role;
+    }
+    const customerRole = role;
+    const moneyState = type === "Buy" ? (customerRole === "Customer" ? "Debit" : "Credit") : (customerRole === "Customer" ? "Credit" : "Debit");
+    const goldState = type === "Buy" ? (customerRole === "Customer" ? "Credit" : "Debit") : (customerRole === "Customer" ? "Debit" : "Credit");
+    const moneyType = type === "Buy" ? (customerRole === "Customer" ? "Debit" : "Credit") : (customerRole === "Customer" ? "Credit" : "Debit");
+    const goldType = type === "Buy" ? (customerRole === "Customer" ? "Credit" : "Debit") : (customerRole === "Customer" ? "Debit" : "Credit");
+    const [fixing] = await connection.execute<ResultSetHeader>("INSERT INTO fixing (fi_cus, ref, fi_gold, fi_price, fi_owns, drrate, total, money_state, gold_state, typec) VALUES (?, ?, ?, 3.67, ?, 3.67, ?, ?, ?, ?)", [id, reference, gold, ounce, total, moneyState, goldState, type]);
+    await connection.execute("INSERT INTO account (cus_id, ref, amount, amo_cre, gold, role, state, type, com) VALUES (?, ?, 0, 0, ?, '" + customerRole + "', 'Cash', ?, 0)", [id, reference, gold, goldType]);
+    await connection.execute("INSERT INTO account (cus_id, ref, amount, amo_cre, gold, role, state, type, com) VALUES (?, ?, ?, 0, 0, '" + customerRole + "', 'Cash', ?, 0)", [id, reference, total, moneyType]);
+    const description = `Fixed GOLD ${type.toUpperCase()} TO ${reference} FOR ${name} WT- ${gold} GMS IN OUNCE ${ounce}`;
+    await connection.execute("INSERT INTO statement (se_cus, ref, se_tgolg, se_tpurity, se_tbill, se_type, se_method, dis) VALUES (?, ?, 0, ?, 0, ?, 'Cash', ?)", [id, reference, gold, goldType, description]);
+    await connection.execute("INSERT INTO statement (se_cus, ref, se_tgolg, se_tpurity, se_tbill, se_type, se_method, dis) VALUES (?, ?, 0, 0, ?, ?, 'Cash', ?)", [id, reference, total, moneyType, description]);
+    await connection.commit();
+    response.status(201).json({ id: fixing.insertId, customerId: id, role, type, gold, total });
+  } catch (error) {
+    await connection.rollback();
+    console.error("Fixing transaction failed", error);
+    response.status(400).json({ message: error instanceof Error ? error.message : "Fixing transaction could not be saved" });
+  } finally { connection.release(); }
+});
+
 app.get("/api/dashboard", async (_request, response) => {
   try {
     const [customerCount, supplierCount, moneySupplierCount, userCount, todayCashDebit, cashDebit, todayCashCredit, cashCredit, todayOfficeCash, officeCash, todayGoldDebit, goldDebit, todayGoldCredit, goldCredit, todaySilverDebit, silverDebit, todaySilverCredit, silverCredit] = await Promise.all([
