@@ -7,7 +7,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         dashboard: "index.html",
-        auth: "auth.html"
+        auth: "auth.html",
+        balance: "balance.html"
       }
     }
   },

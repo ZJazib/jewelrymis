@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap');
+:root { color: #102a43; background: #f4f7fb; font-family: 'DM Sans', sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+.balance-shell { margin: 0 auto; max-width: 1320px; padding: 48px clamp(20px, 5vw, 72px); }
+h1 { font: 700 clamp(2rem, 4vw, 3.2rem) 'Space Grotesk', sans-serif; margin: 8px 0; }
+p { color: #627d98; margin: 0; }
+.eyebrow { color: #627d98; font-size: .72rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.filters { align-items: end; display: flex; flex-wrap: wrap; gap: 14px; margin: 38px 0 20px; }
+label { color: #334e68; display: grid; font-size: .8rem; font-weight: 700; gap: 6px; }
+input { border: 1px solid #bcccdc; font: inherit; padding: 11px 12px; }
+button { background: #2364aa; border: 0; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 12px 20px; }
+.summary { display: grid; gap: 16px; grid-template-columns: repeat(2, 1fr); margin: 24px 0 16px; }
+.summary article, .table-card { background: #fff; border: 1px solid #e6edf3; box-shadow: 0 8px 26px rgba(16,42,67,.06); }
+.summary article { padding: 24px; }
+.summary strong { display: block; font: 700 2rem 'Space Grotesk', sans-serif; margin-top: 16px; }
+.summary small { color: #627d98; font: 500 .8rem 'DM Sans', sans-serif; }
+.table-card { overflow-x: auto; padding: 10px; }
+table { border-collapse: collapse; min-width: 680px; width: 100%; }
+th { color: #829ab1; font-size: .72rem; letter-spacing: .08em; text-align: left; text-transform: uppercase; }
+th, td { border-bottom: 1px solid #edf2f7; padding: 15px 12px; }
+td { color: #334e68; font-size: .9rem; }
+.storage { background: #f0f4f8; font-weight: 700; }
+.positive { color: #16825d; }.negative { color: #c53030; }.empty, .error { color: #829ab1; padding: 24px; text-align: center; }.error { background: #fff1f2; border-left: 4px solid #d1495b; margin: 18px 0; text-align: left; }
+@media (max-width: 600px) { .summary { grid-template-columns: 1fr; } .filters label, .filters input, .filters button { width: 100%; } }

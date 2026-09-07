@@ -28,6 +28,18 @@ interface UserRow extends RowDataPacket {
   user_role: string;
 }
 
+interface BalanceRow extends RowDataPacket {
+  customer_id: number;
+  customer_name: string;
+  customer_role: string;
+  total_debit_gold: number | string | null;
+  total_credit_gold: number | string | null;
+  total_gold_balance: number | string | null;
+  total_debit_money: number | string | null;
+  total_credit_money: number | string | null;
+  total_money_balance: number | string | null;
+}
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST ?? "localhost",
   user: process.env.DB_USER ?? "hmajewellery_user",
@@ -95,6 +107,37 @@ app.post("/api/auth/signout", (request, response) => {
     }
     response.status(204).end();
   });
+});
+
+app.get("/api/balance", async (request, response) => {
+  const fromDate = typeof request.query.from_date === "string" ? request.query.from_date : "";
+  const toDate = typeof request.query.to_date === "string" ? request.query.to_date : "";
+  if ((fromDate && !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) || (toDate && !/^\d{4}-\d{2}-\d{2}$/.test(toDate))) {
+    response.status(400).json({ message: "Dates must use YYYY-MM-DD format" });
+    return;
+  }
+
+  try {
+    let query = `SELECT c.id AS customer_id, c.name AS customer_name, c.role AS customer_role,
+      SUM(CASE WHEN s.se_type = 'Debit' THEN s.se_tpurity ELSE 0 END) AS total_debit_gold,
+      SUM(CASE WHEN s.se_type = 'Credit' THEN s.se_tpurity ELSE 0 END) AS total_credit_gold,
+      SUM(CASE WHEN s.se_type = 'Credit' THEN s.se_tpurity ELSE 0 END) - SUM(CASE WHEN s.se_type = 'Debit' THEN s.se_tpurity ELSE 0 END) AS total_gold_balance,
+      SUM(CASE WHEN s.se_type = 'Debit' THEN s.se_tbill ELSE 0 END) AS total_debit_money,
+      SUM(CASE WHEN s.se_type = 'Credit' THEN s.se_tbill ELSE 0 END) AS total_credit_money,
+      SUM(CASE WHEN s.se_type = 'Credit' THEN s.se_tbill ELSE 0 END) - SUM(CASE WHEN s.se_type = 'Debit' THEN s.se_tbill ELSE 0 END) AS total_money_balance
+      FROM customer c LEFT JOIN statement s ON c.id = s.se_cus WHERE s.se_cus > 2`;
+    const parameters: string[] = [];
+    if (fromDate) { query += " AND s.se_date >= ?"; parameters.push(fromDate); }
+    if (toDate) { query += " AND s.se_date <= ?"; parameters.push(toDate); }
+    query += " GROUP BY c.id ORDER BY c.role, c.name";
+    const [customers] = await pool.query<BalanceRow[]>(query, parameters);
+    const [storage] = await pool.query<SumRow[]>("SELECT SUM(CASE WHEN method = 'Debit' THEN st_price ELSE 0 END) - SUM(CASE WHEN method = 'Credit' THEN st_price ELSE 0 END) AS total FROM storage WHERE type = 'Cash'");
+    const [gold] = await pool.query<SumRow[]>("SELECT SUM(CASE WHEN method = 'Credit' THEN st_gold ELSE 0 END) - SUM(CASE WHEN method = 'Debit' THEN st_gold ELSE 0 END) AS total FROM storage WHERE type = 'Cash'");
+    response.json({ customers, storage: { money: numeric(storage[0]?.total ?? 0), gold: numeric(gold[0]?.total ?? 0) } });
+  } catch (error) {
+    console.error("Balance query failed", error);
+    response.status(503).json({ message: "Balance data is temporarily unavailable" });
+  }
 });
 
 app.get("/api/dashboard", async (_request, response) => {
