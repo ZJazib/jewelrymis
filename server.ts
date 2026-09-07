@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import cors from "cors";
 import express from "express";
 import session from "express-session";
-import mysql, { type RowDataPacket } from "mysql2/promise";
+import mysql, { type ResultSetHeader, type RowDataPacket } from "mysql2/promise";
 
 interface CountRow extends RowDataPacket {
   count: number | string | null;
@@ -38,6 +38,16 @@ interface BalanceRow extends RowDataPacket {
   total_debit_money: number | string | null;
   total_credit_money: number | string | null;
   total_money_balance: number | string | null;
+}
+
+interface CustomerRow extends RowDataPacket {
+  id: number;
+  name: string;
+  nic: string | null;
+  phone: string | null;
+  email: string | null;
+  loc: string | null;
+  role: string;
 }
 
 const pool = mysql.createPool({
@@ -137,6 +147,36 @@ app.get("/api/balance", async (request, response) => {
   } catch (error) {
     console.error("Balance query failed", error);
     response.status(503).json({ message: "Balance data is temporarily unavailable" });
+  }
+});
+
+app.get("/api/customers", async (request, response) => {
+  const search = typeof request.query.search === "string" ? request.query.search.trim() : "";
+  try {
+    const [rows] = await pool.query<CustomerRow[]>(
+      "SELECT id, name, nic, phone, email, loc, role FROM customer WHERE role = 'Customer' AND (? = '' OR name LIKE ? OR nic LIKE ? OR loc LIKE ?) ORDER BY date DESC",
+      [search, `%${search}%`, `%${search}%`, `%${search}%`]
+    );
+    response.json(rows);
+  } catch (error) {
+    console.error("Customer list query failed", error);
+    response.status(503).json({ message: "Customer data is temporarily unavailable" });
+  }
+});
+
+app.post("/api/customers", async (request, response) => {
+  const fields = ["name", "ref", "nic", "phone", "email", "loc"] as const;
+  const values = fields.map((field) => typeof request.body[field] === "string" ? request.body[field].trim() : "");
+  if (!values[0]) {
+    response.status(400).json({ message: "Customer name is required" });
+    return;
+  }
+  try {
+    const [result] = await pool.execute<ResultSetHeader>("INSERT INTO customer (name, phone, email, nic, ref, loc, role) VALUES (?, ?, ?, ?, ?, ?, 'Customer')", values);
+    response.status(201).json({ id: result.insertId });
+  } catch (error) {
+    console.error("Customer creation failed", error);
+    response.status(503).json({ message: "Customer could not be created" });
   }
 });
 

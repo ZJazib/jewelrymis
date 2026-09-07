@@ -1,0 +1,10 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap');
+:root { color: #102a43; background: #f4f7fb; font-family: 'DM Sans', sans-serif; }
+* { box-sizing: border-box; } body { margin: 0; }
+.customer-shell { margin: 0 auto; max-width: 1440px; padding: 44px clamp(20px, 4vw, 64px); }
+.customer-header { align-items: end; display: flex; justify-content: space-between; gap: 20px; }
+h1 { font: 700 clamp(2rem, 4vw, 3.2rem) 'Space Grotesk', sans-serif; margin: 8px 0; } p { color: #627d98; margin: 0; }.eyebrow { color: #627d98; font-size: .72rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+button { background: #2364aa; border: 0; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 12px 18px; }
+.notice { background: #e3fcef; color: #136f4b; margin-top: 24px; padding: 12px 16px; }.customer-form, .customer-list { background: #fff; border: 1px solid #e6edf3; box-shadow: 0 8px 26px rgba(16,42,67,.06); margin-top: 24px; padding: 24px; }.customer-form { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); }.customer-form label { display: grid; font-size: .8rem; font-weight: 700; gap: 7px; }.customer-form button { align-self: end; }.customer-form input, .search-row input { border: 1px solid #bcccdc; font: inherit; padding: 11px; }.search-row { display: flex; gap: 10px; margin-bottom: 20px; }.search-row input { flex: 1; }
+.table-wrap { overflow-x: auto; }table { border-collapse: collapse; min-width: 850px; width: 100%; }th { color: #829ab1; font-size: .72rem; letter-spacing: .08em; text-align: left; text-transform: uppercase; }th, td { border-bottom: 1px solid #edf2f7; padding: 14px 10px; }td { color: #334e68; font-size: .9rem; }td a { color: #2364aa; font-weight: 700; margin-right: 12px; text-decoration: none; }.empty { color: #829ab1; padding: 24px; text-align: center; }
+@media (max-width: 700px) { .customer-header { align-items: start; flex-direction: column; }.customer-form { grid-template-columns: 1fr; }.customer-form button { width: 100%; } }

@@ -8,7 +8,8 @@ export default defineConfig({
       input: {
         dashboard: "index.html",
         auth: "auth.html",
-        balance: "balance.html"
+        balance: "balance.html",
+        customer: "customer.html"
       }
     }
   },
